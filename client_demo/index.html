@@ -47,6 +47,7 @@
         <button id="connectWebSocket">Connect WebSocket</button>
         <button id="disconnectWebSocket">Disconnect WebSocket</button>
         <input type="text" id="obsPath" placeholder="OBS Studio Executable Path">
+        <input type="text" id="paramPath" placeholder="Additional Parameters (optional)">
         <button id="openOBS">Open OBS Studio</button>
         <button id="getOBSStatus">Get OBS Studio Status</button>
         <div id="console" class="console"></div>
@@ -130,6 +131,8 @@
         document.getElementById('openOBS').addEventListener('click', function() {
             const commandUid = generateUID();
             const obsPath = document.getElementById('obsPath').value || 'C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe';
+            const paramPath = document.getElementById('paramPath').value;
+
             if (websocket && websocket.readyState === WebSocket.OPEN) {
                 const message = {
                     command: 'OPEN_OBS_STUDIO',
@@ -138,6 +141,11 @@
                         path: obsPath
                     }
                 };
+                
+                if (paramPath) {
+                    message.parameter.param_path = paramPath;
+                }
+
                 appendToConsole('Action: Opening OBS Studio');
                 appendToConsole('JSON Sent: ' + JSON.stringify(message, null, 2));
                 websocket.send(JSON.stringify(message));

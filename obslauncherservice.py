@@ -130,6 +130,7 @@ async def disconnect_server(command_uid: str, pid: str, parameters: Dict[str, An
         return create_json_response(command_uid, "error", "WebSocket connection not found.")
 
 async def open_obs_studio(command_uid: str, pid: str, parameters: Dict[str, Any]) -> str:
+    """Open OBS Studio."""
     if pid not in connections:
         log_warning(f"Invalid pid {pid} for OPEN_OBS_STUDIO command.")
         return create_json_response(command_uid, "error", "Invalid connection PID.")
@@ -139,16 +140,26 @@ async def open_obs_studio(command_uid: str, pid: str, parameters: Dict[str, Any]
         log_info(f"OBS Studio is already running for pid: {pid}")
         return create_json_response(command_uid, "error", "OBS Studio is already running.")
 
+    # Get the executable path and additional parameters
     executable_path = parameters.get("path", DEFAULT_OBS_STUDIO_EXECUTABLE_PATH)
+    param_path = parameters.get("param_path", "")
+
+    # Determine the working directory based on the executable path
+    working_directory = os.path.dirname(executable_path)
 
     if not os.path.isfile(executable_path):
         log_error(f"Executable not found at path: {executable_path}")
         return create_json_response(command_uid, "error", "OBS Studio executable not found.", {"path": executable_path})
 
     try:
+        # Prepare the command with additional parameters if provided
+        command = [executable_path]
+        if param_path:
+            command.extend(param_path.split())
+
         process = await asyncio.create_subprocess_exec(
-            executable_path,
-            cwd=DEFAULT_OBS_STUDIO_WORKING_DIRECTORY,
+            *command,
+            cwd=working_directory,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL
         )
