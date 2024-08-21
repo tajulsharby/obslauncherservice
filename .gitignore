@@ -1,0 +1,30 @@
+# Ignore Python bytecode files
+*.pyc
+__pycache__/
+
+# Ignore virtual environments
+venv/
+.env/
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore logs
+activity_log.txt
+
+# Ignore PyInstaller build files
+/build/
+/dist/
+/*.spec
+
+# Ignore test files
+*.log
+
+# Ignore IDE configurations
+.idea/
+.vscode/
+
+# Ignore unnecessary files
+*.bak
+*.tmp

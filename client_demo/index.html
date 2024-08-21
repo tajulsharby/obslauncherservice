@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Studio WebSocket Client Demo</title>
+    <style>
+        body {
+            background-color: #333;
+            color: #fff;
+            font-family: monospace;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        button, input {
+            background-color: #555;
+            border: none;
+            padding: 10px;
+            color: #fff;
+            margin: 5px 0;
+            cursor: pointer;
+            width: 100%;
+            font-family: monospace;
+            font-size: 16px;
+        }
+        input {
+            width: calc(100% - 20px);
+        }
+        .console {
+            background-color: #000;
+            padding: 10px;
+            height: 1000px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            color: #00ff00;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button id="connectWebSocket">Connect WebSocket</button>
+        <button id="disconnectWebSocket">Disconnect WebSocket</button>
+        <input type="text" id="obsPath" placeholder="OBS Studio Executable Path">
+        <button id="openOBS">Open OBS Studio</button>
+        <button id="getOBSStatus">Get OBS Studio Status</button>
+        <div id="console" class="console"></div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let app_pid = '';  // This will store the app_pid from the server
+
+        function appendToConsole(message) {
+            const consoleElement = document.getElementById('console');
+            consoleElement.textContent += message + '\n';
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+
+        document.getElementById('connectWebSocket').addEventListener('click', function() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                appendToConsole('WebSocket is already connected.');
+                return;
+            }
+
+            const commandUid = generateUID();
+            websocket = new WebSocket('ws://localhost:8765');
+
+            websocket.onopen = function() {
+                const message = {
+                    command: 'CONNECT_SERVER',
+                    command_uid: commandUid,
+                };
+                appendToConsole('Action: Connecting to WebSocket');
+                appendToConsole('JSON Sent: ' + JSON.stringify(message, null, 2));
+                websocket.send(JSON.stringify(message));
+            };
+
+            websocket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    appendToConsole('Returned Message: ' + JSON.stringify(data, null, 2));
+
+                    if (data.status === 'error' && data.message.includes('already been established')) {
+                        appendToConsole('Error: ' + data.message);
+                    } else if (data.status === 'success') {
+                        // Capture the app_pid when OBS Studio is opened
+                        if (data.data && data.data.app_pid) {
+                            app_pid = data.data.app_pid;
+                        }
+                    }
+                } catch (error) {
+                    appendToConsole('Received invalid JSON: ' + event.data);
+                }
+            };
+
+            websocket.onclose = function() {
+                appendToConsole('WebSocket disconnected.');
+            };
+
+            websocket.onerror = function(error) {
+                appendToConsole('WebSocket Error: ' + (error.message || 'Connection failed.'));
+            };
+        });
+
+        document.getElementById('disconnectWebSocket').addEventListener('click', function() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const commandUid = generateUID();
+                const message = {
+                    command: 'DISCONNECT_SERVER',
+                    command_uid: commandUid,
+                    parameter: {
+                        pid: app_pid,
+                    }
+                };
+                appendToConsole('Action: Disconnecting WebSocket');
+                appendToConsole('JSON Sent: ' + JSON.stringify(message, null, 2));
+                websocket.send(JSON.stringify(message));
+                websocket.close();
+            } else {
+                appendToConsole('No active WebSocket connection.');
+            }
+        });
+
+        document.getElementById('openOBS').addEventListener('click', function() {
+            const commandUid = generateUID();
+            const obsPath = document.getElementById('obsPath').value || 'C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe';
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const message = {
+                    command: 'OPEN_OBS_STUDIO',
+                    command_uid: commandUid,
+                    parameter: {
+                        path: obsPath
+                    }
+                };
+                appendToConsole('Action: Opening OBS Studio');
+                appendToConsole('JSON Sent: ' + JSON.stringify(message, null, 2));
+                websocket.send(JSON.stringify(message));
+            } else {
+                appendToConsole('WebSocket is not connected.');
+            }
+        });
+
+        document.getElementById('getOBSStatus').addEventListener('click', function() {
+            const commandUid = generateUID();
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                if (!app_pid) {
+                    appendToConsole('Error: OBS Studio is not running or app_pid is not available.');
+                    return;
+                }
+
+                const message = {
+                    command: 'GET_OBS_STUDIO_STATUS',
+                    command_uid: commandUid,
+                    parameter: {
+                        app_pid: app_pid,  // Use the stored app_pid
+                    }
+                };
+                appendToConsole('Action: Getting OBS Studio Status');
+                appendToConsole('JSON Sent: ' + JSON.stringify(message, null, 2));
+                websocket.send(JSON.stringify(message));
+            } else {
+                appendToConsole('WebSocket is not connected.');
+            }
+        });
+
+        function generateUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+    </script>
+</body>
+</html>
